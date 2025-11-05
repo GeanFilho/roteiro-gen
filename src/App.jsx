@@ -50,29 +50,25 @@ function loadLocal(key, fallback){
   try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch(e){ return fallback; }
 }
 
-// ===== Heurísticas simples de idioma =====
-// NÃO é tradução; só tenta separar PT de EN por padrões básicos
-const PT_WORDS = /(?: de | que | não | você| Deus| pra | hoje| isso| também| comigo| novo| tempo| fé| oração| promessa| agora| Senhor)/i;
-const EN_WORDS = /(?: the | and | you | god| today| this| also| with| new| time| faith| prayer| promise| now)/i;
+// ===== Heurísticas simples de idioma (mais rígidas)
+const PT_WORDS = /(?:\bde\b|\bque\b|\bnão\b|\bvocê\b|\bDeus\b|\bpra\b|\bhoje\b|\bisso\b|\btambém\b|\bSenhor\b|\bfé\b|\boração\b|\bpromessa\b|\bagora\b)/i;
+const EN_WORDS = /(?:\bthe\b|\band\b|\byou\b|\bgod\b|\btoday\b|\bthis\b|\bwith\b|\bnew\b|\btime\b|\bfaith\b|\bprayer\b|\bpromise\b|\bnow\b)/i;
 const PT_DIACRITICS = /[áàâãéêíóôõúç]/i;
 
 function looksPortuguese(s){
-  // Tem acentos ou muitas palavras PT típicas e pouca cara de EN
-  const ptScore = (PT_WORDS.test(s) ? 1 : 0) + (PT_DIACRITICS.test(s) ? 1 : 0);
+  const ptScore = (PT_WORDS.test(s) ? 1 : 0) + (PT_DIACRITICS.test(s) ? 2 : 0);
   const enScore = EN_WORDS.test(s) ? 1 : 0;
-  return ptScore >= 1 && ptScore >= enScore;
+  return ptScore >= 2 && ptScore > enScore;
 }
 function looksEnglish(s){
-  const enScore = EN_WORDS.test(s) ? 1 : 0;
-  const ptScore = (PT_WORDS.test(s) ? 1 : 0) + (PT_DIACRITICS.test(s) ? 1 : 0);
-  return enScore > ptScore;
+  const enScore = EN_WORDS.test(s) ? 2 : 0;
+  const ptScore = (PT_WORDS.test(s) ? 1 : 0) + (PT_DIACRITICS.test(s) ? 2 : 0);
+  return enScore > ptScore && !PT_DIACRITICS.test(s);
 }
-
 function filterCorpusByLang(lines, lang){
   const cleaned = lines.filter(Boolean);
-  const filtered = cleaned.filter(s => lang === "PT" ? looksPortuguese(s) && !looksEnglish(s) : looksEnglish(s) && !looksPortuguese(s));
-  // Se ficar vazio, volta ao corpus original para não quebrar
-  return filtered.length ? filtered : cleaned;
+  const filtered = cleaned.filter(s => lang === "PT" ? looksPortuguese(s) : looksEnglish(s));
+  return filtered.length ? filtered : cleaned; // fallback para não quebrar
 }
 
 // ===== Dados auxiliares =====
@@ -132,7 +128,7 @@ const ANGULOS = [
   "deserto/processo"
 ];
 
-// ===== Frases de impacto (fixas por idioma) =====
+// ===== Frases de impacto (por idioma)
 const IMPACT_PT = [
   "DEUS ESTÁ ME ERGUENDO.",
   "EU CREIO QUE O MILAGRE JÁ COMEÇOU.",
@@ -152,7 +148,7 @@ const IMPACT_EN = [
   "TODAY I CHOOSE TO WALK BY FAITH."
 ];
 
-// ===== Ideias (mesma estrutura visual; texto um pouco mais rico) =====
+// ===== Ideias (uma única “frase de impacto”, idioma fixo, sem duplicar no corpo)
 function toIdea(base, opts, rnd) {
   const { lang, reforcarTitulo, incluirVerso } = opts;
   const ctas = lang === "PT" ? CTAS_PT : CTAS_EN;
@@ -185,13 +181,16 @@ function toIdea(base, opts, rnd) {
   const titulo = reforcarTitulo ? tituloBase.toUpperCase() : tituloBase;
 
   const gancho = ganchoPool[Math.floor(rnd()*ganchoPool.length)];
+  const impacto = impactos[Math.floor(rnd()*impactos.length)];
   const cta = ctas[Math.floor(rnd()*ctas.length)];
   const visual = VISUAIS[Math.floor(rnd()*VISUAIS.length)];
   const trilha = TRILHAS[Math.floor(rnd()*TRILHAS.length)];
   const verso = incluirVerso && opts.versos.length > 0 ? opts.versos[Math.floor(rnd()*opts.versos.length)] : "";
 
-  // Frase de impacto (no idioma selecionado) + reforço prático curto
-  const impacto = impactos[Math.floor(rnd()*impactos.length)];
+  // se a linha base do corpus não estiver no idioma atual, não usa
+  const baseOk = (lang === "PT" ? looksPortuguese(base) : looksEnglish(base));
+  const baseTexto = baseOk ? base : "";
+
   const reforcoPT = [
     "Respire fundo agora e entregue de novo o que pesa. Deus não se atrasa.",
     "Não é sobre o tamanho do passo, e sim sobre dar o próximo passo com fé.",
@@ -204,10 +203,12 @@ function toIdea(base, opts, rnd) {
   ];
   const reforco = (lang === "PT" ? reforcoPT : reforcoEN)[Math.floor(rnd()*3)];
 
-  const desenvolvimento =
-    `${base}\n\n${reforco}\nVisual sugerido: ${visual}. Trilha: ${trilha}.`;
+  // impacto NÃO entra no corpo
+  const partes = [baseTexto, "", reforco, `Visual sugerido: ${visual}. Trilha: ${trilha}.`]
+    .filter(Boolean)
+    .join("\n");
 
-  return { titulo, gancho, impacto, ideiaCentral: desenvolvimento, cta, visual, trilha, verso };
+  return { titulo, gancho, impacto, ideiaCentral: partes, cta, visual, trilha, verso };
 }
 
 function csvEsc(s){
@@ -216,7 +217,6 @@ function csvEsc(s){
   return needs ? '"' + String(s).replace(/"/g,'""') + '"' : String(s);
 }
 function toCSV(rows){
-  // Inclui “Frase de impacto” no CSV
   const head = ["Data","Título","Gancho","Frase de impacto","Ideia central","CTA","Cenário visual","Trilha/Efeitos","Verso"].join(",");
   const lines = rows.map(r => [r.data, r.titulo, r.gancho, r.impacto || "", r.ideiaCentral, r.cta, r.visual, r.trilha, r.verso]
     .map(csvEsc).join(","));
@@ -318,9 +318,7 @@ export default function App() {
       alert("Cole ou extraia do PDF os roteiros (uma linha por ideia) no campo à esquerda.");
       return;
     }
-    // 🔒 Filtra o corpus pelo idioma selecionado
     const corpusFiltrado = filterCorpusByLang(corpus, lang);
-
     const seed = `${dataEscolhida}|${lang}|${n}|${corpusFiltrado.length}|${reforcarTitulo}|${incluirVerso}`;
     const rnd = seededRandom(seed);
     const bases = pickN(corpusFiltrado, n, rnd);
@@ -364,7 +362,6 @@ Trilha: ${r.trilha}${r.verso?`\nVerso: ${r.verso}`:""}`
       setPdfStatus("Processando texto…");
       const lines = cleanLines(raw);
 
-      // separação heurística (igual antes)
       const rich = lines.map(s => ({ s, score: scoreLine(s) }))
         .filter(o => o.score > 0)
         .map(o => o.s);
@@ -483,7 +480,7 @@ Trilha: ${r.trilha}${r.verso?`\nVerso: ${r.verso}`:""}`
                   <div className="text-lg font-bold mt-1">{r.titulo}</div>
                   <div className="text-sm text-zinc-300 mt-1">Gancho: {r.gancho}</div>
 
-                  {/* Destaque visual para a Frase de impacto */}
+                  {/* ÚNICA caixinha de Frase de impacto */}
                   {r.impacto && (
                     <div className="mt-2 rounded-xl border border-emerald-800 bg-emerald-900/10 p-3">
                       <div className="text-emerald-400 text-xs uppercase tracking-wide">Frase de impacto</div>
