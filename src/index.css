@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Estilos opcionais adicionais */
+html, body {
+  height: 100%;
+  background-color: #09090b;
+}
