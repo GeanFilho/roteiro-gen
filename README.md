@@ -1,16 +1,102 @@
-# React + Vite
+# 🎬 Gerador Diário de Ideias de Roteiros
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplicação web simples feita em **React + Vite + Tailwind**, que gera **roteiros diários inspiracionais** (com ganchos, CTAs, visuais e trilhas) a partir de textos extraídos de PDFs — com **leitura automática**, **OCR integrado** e **exportação CSV/JSON**.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🚀 Funcionalidades
 
-## React Compiler
+✅ Leitura automática de PDFs com **PDF.js**
+✅ Fallback de **OCR (Tesseract.js)** para PDFs escaneados
+✅ Interface leve e responsiva com TailwindCSS
+✅ Geração de ideias diárias (baseadas em data, idioma e corpus)
+✅ Exportação em **CSV**, **JSON** e **Copiar texto**
+✅ Salvamento local (localStorage) dos roteiros e versículos
+✅ 100% client-side (sem backend) — seguro e gratuito
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## 🧠 Como funciona
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+1. Você faz upload de um PDF com textos ou orações.
+2. O app extrai o conteúdo (ou usa OCR se for imagem).
+3. Gera **n** ideias diárias, únicas para a data escolhida.
+4. Cada ideia traz:
+
+   * 🎯 Título e gancho
+   * 💬 Frase de impacto (mensagem central)
+   * 🕊️ Desenvolvimento com CTA, trilha e visual sugerido
+   * 📖 Verso opcional
+
+---
+
+## 🧩 Tecnologias usadas
+
+* [React](https://react.dev/)
+* [Vite](https://vitejs.dev/)
+* [TailwindCSS](https://tailwindcss.com/)
+* [pdfjs-dist](https://www.npmjs.com/package/pdfjs-dist)
+* [tesseract.js](https://www.npmjs.com/package/tesseract.js)
+
+---
+
+## 💻 Instalação local
+
+```bash
+# 1. Clone o repositório
+git clone https://github.com/seuusuario/roteiro-gen.git
+cd roteiro-gen
+
+# 2. Instale as dependências
+npm install
+
+# 3. Rode localmente
+npm run dev
+```
+
+O app abrirá em `http://localhost:5173`
+
+---
+
+## 🌐 Deploy na Vercel
+
+1. Faça login em [vercel.com](https://vercel.com)
+2. Crie um novo projeto e conecte o repositório GitHub
+3. A Vercel detectará o framework **Vite** automaticamente
+4. Clique em **Deploy**
+5. Acesse: `https://seuprojeto.vercel.app`
+
+---
+
+## ⚙️ Estrutura de pastas
+
+```
+roteiro-gen/
+├── public/
+│   └── favicon.ico
+├── src/
+│   ├── App.jsx
+│   ├── index.css
+│   └── main.jsx
+├── package.json
+├── vite.config.js
+└── tailwind.config.js
+```
+
+---
+
+## 📁 Scripts principais
+
+| Comando           | Descrição                  |
+| ----------------- | -------------------------- |
+| `npm run dev`     | Inicia o servidor local    |
+| `npm run build`   | Cria build otimizada       |
+| `npm run preview` | Visualiza build localmente |
+
+---
+
+## 🧾 Licença
+
+© 2025 — Feito por Gean Filho.
+
+Sinta-se livre para usar, modificar e compartilhar.
