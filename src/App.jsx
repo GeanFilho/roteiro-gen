@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 
-// ==== PDF.js com Worker configurado (corrige “No GlobalWorkerOptions.workerSrc specified”)
+// ==== PDF.js com Worker configurado
 import * as pdfjsLib from "pdfjs-dist/build/pdf";
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min?url";
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
@@ -48,6 +48,31 @@ function saveLocal(key, value){
 }
 function loadLocal(key, fallback){
   try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch(e){ return fallback; }
+}
+
+// ===== Heurísticas simples de idioma =====
+// NÃO é tradução; só tenta separar PT de EN por padrões básicos
+const PT_WORDS = /(?: de | que | não | você| Deus| pra | hoje| isso| também| comigo| novo| tempo| fé| oração| promessa| agora| Senhor)/i;
+const EN_WORDS = /(?: the | and | you | god| today| this| also| with| new| time| faith| prayer| promise| now)/i;
+const PT_DIACRITICS = /[áàâãéêíóôõúç]/i;
+
+function looksPortuguese(s){
+  // Tem acentos ou muitas palavras PT típicas e pouca cara de EN
+  const ptScore = (PT_WORDS.test(s) ? 1 : 0) + (PT_DIACRITICS.test(s) ? 1 : 0);
+  const enScore = EN_WORDS.test(s) ? 1 : 0;
+  return ptScore >= 1 && ptScore >= enScore;
+}
+function looksEnglish(s){
+  const enScore = EN_WORDS.test(s) ? 1 : 0;
+  const ptScore = (PT_WORDS.test(s) ? 1 : 0) + (PT_DIACRITICS.test(s) ? 1 : 0);
+  return enScore > ptScore;
+}
+
+function filterCorpusByLang(lines, lang){
+  const cleaned = lines.filter(Boolean);
+  const filtered = cleaned.filter(s => lang === "PT" ? looksPortuguese(s) && !looksEnglish(s) : looksEnglish(s) && !looksPortuguese(s));
+  // Se ficar vazio, volta ao corpus original para não quebrar
+  return filtered.length ? filtered : cleaned;
 }
 
 // ===== Dados auxiliares =====
@@ -107,7 +132,7 @@ const ANGULOS = [
   "deserto/processo"
 ];
 
-// ===== NOVO: Frases de impacto (sempre no idioma selecionado)
+// ===== Frases de impacto (fixas por idioma) =====
 const IMPACT_PT = [
   "DEUS ESTÁ ME ERGUENDO.",
   "EU CREIO QUE O MILAGRE JÁ COMEÇOU.",
@@ -191,7 +216,7 @@ function csvEsc(s){
   return needs ? '"' + String(s).replace(/"/g,'""') + '"' : String(s);
 }
 function toCSV(rows){
-  // NOVO: inclui “Frase de impacto” no CSV
+  // Inclui “Frase de impacto” no CSV
   const head = ["Data","Título","Gancho","Frase de impacto","Ideia central","CTA","Cenário visual","Trilha/Efeitos","Verso"].join(",");
   const lines = rows.map(r => [r.data, r.titulo, r.gancho, r.impacto || "", r.ideiaCentral, r.cta, r.visual, r.trilha, r.verso]
     .map(csvEsc).join(","));
@@ -269,7 +294,7 @@ async function ocrPdfToText(file, lang = 'por', onProgress){
   return out.join('\n');
 }
 
-// ===== Componente principal (mesma UI/estilo da sua versão) =====
+// ===== Componente principal =====
 export default function App() {
   const [lang, setLang] = useState("PT");
   const [n, setN] = useState(9);
@@ -293,9 +318,12 @@ export default function App() {
       alert("Cole ou extraia do PDF os roteiros (uma linha por ideia) no campo à esquerda.");
       return;
     }
-    const seed = `${dataEscolhida}|${lang}|${n}|${corpus.length}|${reforcarTitulo}|${incluirVerso}`;
+    // 🔒 Filtra o corpus pelo idioma selecionado
+    const corpusFiltrado = filterCorpusByLang(corpus, lang);
+
+    const seed = `${dataEscolhida}|${lang}|${n}|${corpusFiltrado.length}|${reforcarTitulo}|${incluirVerso}`;
     const rnd = seededRandom(seed);
-    const bases = pickN(corpus, n, rnd);
+    const bases = pickN(corpusFiltrado, n, rnd);
     const ideias = bases.map(b => toIdea(b, { lang, reforcarTitulo, incluirVerso, versos }, rnd));
     const linhas = ideias.map(i => ({ data: dataEscolhida, ...i }));
     setGeradas(linhas);
@@ -433,7 +461,7 @@ Trilha: ${r.trilha}${r.verso?`\nVerso: ${r.verso}`:""}`
                 Incluir 1 verso
               </label>
             </div>
-            <button onClick={handleGerar} className="mt-4 w-full bg-emerald-600 hover:bg-emerald-500 transition rounded-xl py-2 font-semibold">Gerar ideias</button>
+            <button onClick={handleGerar} disabled={busy} className="mt-4 w-full bg-emerald-600 hover:bg-emerald-500 transition rounded-xl py-2 font-semibold">Gerar ideias</button>
             <div className="flex gap-2 mt-3">
               <button onClick={salvarCorpus} className="bg-zinc-800 rounded-xl px-3 py-2 text-sm">Salvar corpus</button>
             </div>
