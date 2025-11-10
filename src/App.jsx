@@ -83,7 +83,6 @@ const CTAS_PT = [
   "Escreva: O TEMPO DE DEUS É PERFEITO",
   "Declare: MINHA CASA É DO SENHOR"
 ];
-
 const CTAS_EN = [
   "Comment AMEN",
   "Write I BELIEVE",
@@ -117,15 +116,8 @@ const TRILHAS = [
 ];
 
 const ANGULOS = [
-  "financeiro",
-  "cura",
-  "família",
-  "propósito/chamado",
-  "recomeço",
-  "proteção/livramento",
-  "casamento/reconciliação",
-  "ansiedade/descanso",
-  "deserto/processo"
+  "financeiro","cura","família","propósito/chamado","recomeço",
+  "proteção/livramento","casamento/reconciliação","ansiedade/descanso","deserto/processo"
 ];
 
 // ===== Frases de impacto (por idioma)
@@ -148,35 +140,56 @@ const IMPACT_EN = [
   "TODAY I CHOOSE TO WALK BY FAITH."
 ];
 
-// ===== Ideias (uma única “frase de impacto”, idioma fixo, sem duplicar no corpo)
+// ===== auxiliares de texto
+function sentenceCase(s){
+  if(!s) return "";
+  const t = s.trim();
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+function joinParas(paras){
+  return paras.filter(Boolean).map(p => sentenceCase(p)).join("\n\n");
+}
+
+// ===== prompts de vídeo (sempre no idioma selecionado)
+function buildVideoPrompts({ lang, titulo, gancho, impacto, angulo, visual, trilha, verso }) {
+  if (lang === "PT") {
+    return [
+      `ROTEIRO/VOZ: Crie uma locução de 20–30 segundos, tom calmo e confiante, iniciando com "${gancho}". Tema: ${angulo}. Faça a transição da reflexão para a esperança e conclua com uma ação de fé realista.`,
+      `IMAGENS/B-ROLL: Liste 6 a 8 planos curtos (2–3s) que simbolizem "${visual}". Inclua detalhes, planos médios e um plano amplo.`,
+      `EDIÇÃO: Corte no ritmo da trilha "${trilha}", fade-in de 8 quadros, correção fria e granulação leve.`,
+      `MÚSICA: Trilha ambiente com piano e pads suaves, entre 70–80 BPM, sem vocais.`,
+      `TEXTO NA TELA: Mostre o título "${titulo}" e depois destaque a frase "${impacto}".`,
+      `THUMBNAIL: Fundo desfocado e tipografia forte que comunique "${angulo}".`,
+      `LEGENDA/CTA: Legenda curta que inspire entrega e fé (ex.: "${verso ? 'Ref. ' + verso : 'Compartilhe com quem precisa'}").`
+    ];
+  } else {
+    return [
+      `SCRIPT/VOICE: Write a 20–30 second calm, confident voiceover starting with "${gancho}". Theme: ${angulo}. Move from reflection to hope, end with a grounded act of faith.`,
+      `FOOTAGE/B-ROLL: List 6–8 short shots (2–3s) that represent "${visual}". Include details, medium, and wide shots.`,
+      `EDITING: Cut on the beat of "${trilha}", 8-frame fade-in, cool tone, slight grain.`,
+      `MUSIC: Ambient piano + soft pads, 70–80 BPM, no vocals.`,
+      `ON-SCREEN TEXT: Display the title "${titulo}", then highlight "${impacto}".`,
+      `THUMBNAIL: Blurred background, bold typography evoking "${angulo}".`,
+      `CAPTION/CTA: Short caption inviting surrender and faith (e.g. "${verso ? 'Ref. ' + verso : 'Share with who needs this'}").`
+    ];
+  }
+}
+
+// ===== Ideias (coesas/longas, 1 impacto, idioma único, + prompts)
 function toIdea(base, opts, rnd) {
-  const { lang, reforcarTitulo, incluirVerso } = opts;
+  const { lang, reforcarTitulo, incluirVerso, versos } = opts;
   const ctas = lang === "PT" ? CTAS_PT : CTAS_EN;
   const impactos = lang === "PT" ? IMPACT_PT : IMPACT_EN;
 
-  const ganchoTemplatesPT = [
-    "Você precisava ler isso hoje.",
-    "Se isso tocou seu coração, é pra você.",
-    "Uma palavra curta que pode mudar seu dia.",
-    "Pare e leia: resposta de oração.",
-    "Talvez isso seja o sinal que você pediu a Deus.",
-    "Às vezes, o silêncio de Deus também é resposta."
-  ];
-  const ganchoTemplatesEN = [
-    "You needed to read this today.",
-    "If this touched your heart, it's for you.",
-    "A short word that can shift your day.",
-    "Pause and read: prayer answered.",
-    "Maybe this is the sign you asked for.",
-    "Sometimes silence is an answer too."
-  ];
-  const ganchoPool = lang === "PT" ? ganchoTemplatesPT : ganchoTemplatesEN;
+  const ganchoPool = lang === "PT"
+    ? ["Você precisava ler isso hoje.","Talvez isso seja o sinal que você pediu a Deus.","Pare e leia: resposta de oração."]
+    : ["You needed to read this today.","Maybe this is the sign you asked for.","Pause and read: prayer answered."];
 
-  const tituloPrefixesPT = ["Deus te diz:", "Palavra de hoje:", "Resposta do céu:", "Promessa pra agora:", "Não desista:", "Confie no tempo de Deus:"];
-  const tituloPrefixesEN = ["God says:", "Today's word:", "Heaven's answer:", "Promise for now:", "Don't quit:", "Trust God's timing:"];
-  const tituloPool = lang === "PT" ? tituloPrefixesPT : tituloPrefixesEN;
+  const tituloPool = lang === "PT"
+    ? ["Deus te diz:","Palavra de hoje:","Confie no tempo de Deus:"]
+    : ["God says:","Today's word:","Trust God's timing:"];
 
-  const angulo = ANGULOS[Math.floor(rnd() * ANGULOS.length)];
+  const angulo = ANGULOS[Math.floor(rnd()*ANGULOS.length)];
   const tituloBase = `${tituloPool[Math.floor(rnd()*tituloPool.length)]} ${angulo}`;
   const titulo = reforcarTitulo ? tituloBase.toUpperCase() : tituloBase;
 
@@ -185,30 +198,32 @@ function toIdea(base, opts, rnd) {
   const cta = ctas[Math.floor(rnd()*ctas.length)];
   const visual = VISUAIS[Math.floor(rnd()*VISUAIS.length)];
   const trilha = TRILHAS[Math.floor(rnd()*TRILHAS.length)];
-  const verso = incluirVerso && opts.versos.length > 0 ? opts.versos[Math.floor(rnd()*opts.versos.length)] : "";
+  const verso = incluirVerso && versos.length > 0 ? versos[Math.floor(rnd()*versos.length)] : "";
 
-  // se a linha base do corpus não estiver no idioma atual, não usa
-  const baseOk = (lang === "PT" ? looksPortuguese(base) : looksEnglish(base));
+  // força a linha base no idioma atual
+  const baseOk = lang === "PT" ? looksPortuguese(base) : looksEnglish(base);
   const baseTexto = baseOk ? base : "";
 
-  const reforcoPT = [
-    "Respire fundo agora e entregue de novo o que pesa. Deus não se atrasa.",
-    "Não é sobre o tamanho do passo, e sim sobre dar o próximo passo com fé.",
-    "Faça hoje o que está ao seu alcance; Deus cuida do invisível."
-  ];
-  const reforcoEN = [
-    "Take a deep breath and surrender again. God's timing is never late.",
-    "It’s not about a big step; it’s about the next faithful step.",
-    "Do today what you can; God handles the unseen."
-  ];
-  const reforco = (lang === "PT" ? reforcoPT : reforcoEN)[Math.floor(rnd()*3)];
+  // blocos coesos (idioma exclusivo)
+  const intro = lang === "PT"
+    ? `${gancho} Às vezes, Deus silencia para ajustar o nosso olhar.`
+    : `${gancho} Sometimes, God stays silent to realign our sight.`;
+  const meio = lang === "PT"
+    ? `Quando o coração cansa, pratique fé em detalhes simples. Faça o possível e entregue o impossível.`
+    : `When the heart grows tired, practice faith in small details. Do what’s possible and surrender the rest.`;
+  const fim = lang === "PT"
+    ? `Nada é em vão no tempo de Deus. Continue firme, mesmo que em passos curtos.`
+    : `Nothing is wasted in God’s timing. Keep walking, even in small steps.`;
 
-  // impacto NÃO entra no corpo
-  const partes = [baseTexto, "", reforco, `Visual sugerido: ${visual}. Trilha: ${trilha}.`]
-    .filter(Boolean)
-    .join("\n");
+  const desenvolvimento = joinParas([
+    intro,
+    baseTexto || (lang === "PT" ? "Quando a ansiedade aperta, retome a respiração e a oração simples." : "When anxiety tightens, return to breathing and a simple prayer."),
+    meio,
+    fim
+  ]) + `\n\n${lang === "PT" ? "Visual sugerido" : "Suggested visuals"}: ${visual}. ${lang === "PT" ? "Trilha" : "Track"}: ${trilha}.`;
 
-  return { titulo, gancho, impacto, ideiaCentral: partes, cta, visual, trilha, verso };
+  const prompts = buildVideoPrompts({ lang, titulo, gancho, impacto, angulo, visual, trilha, verso });
+  return { titulo, gancho, impacto, ideiaCentral: desenvolvimento, cta, visual, trilha, verso, prompts };
 }
 
 function csvEsc(s){
@@ -217,8 +232,9 @@ function csvEsc(s){
   return needs ? '"' + String(s).replace(/"/g,'""') + '"' : String(s);
 }
 function toCSV(rows){
-  const head = ["Data","Título","Gancho","Frase de impacto","Ideia central","CTA","Cenário visual","Trilha/Efeitos","Verso"].join(",");
-  const lines = rows.map(r => [r.data, r.titulo, r.gancho, r.impacto || "", r.ideiaCentral, r.cta, r.visual, r.trilha, r.verso]
+  // inclui prompts num único campo separado por " || "
+  const head = ["Data","Título","Gancho","Frase de impacto","Ideia central","CTA","Cenário visual","Trilha/Efeitos","Verso","Prompts vídeo"].join(",");
+  const lines = rows.map(r => [r.data, r.titulo, r.gancho, r.impacto || "", r.ideiaCentral, r.cta, r.visual, r.trilha, r.verso, (r.prompts||[]).join(" || ")]
     .map(csvEsc).join(","));
   return [head, ...lines].join("\n");
 }
@@ -330,14 +346,20 @@ export default function App() {
   const copiarTexto = () => {
     if (!geradas.length) return;
     const texto = geradas.map((r, idx) =>
-      `#${idx+1} — ${r.titulo}
+`#${idx+1} — ${r.titulo}
 Gancho: ${r.gancho}
-Impacto: ${r.impacto || "-"}
-Ideia: ${r.ideiaCentral}
+Impacto: ${r.impacto}
+Ideia:
+${r.ideiaCentral}
+
 CTA: ${r.cta}
 Visual: ${r.visual}
-Trilha: ${r.trilha}${r.verso?`\nVerso: ${r.verso}`:""}`
-    ).join("\n\n");
+Trilha: ${r.trilha}${r.verso?`\nVerso: ${r.verso}`:""}
+
+${lang === "PT" ? "Prompts para construir o vídeo:" : "Prompts to build the video:"}
+- ${r.prompts.join("\n- ")}`)
+    .join("\n\n");
+
     navigator.clipboard.writeText(texto);
   };
   const baixarCSV = () => { if (geradas.length) download(`ideias_${dataEscolhida}.csv`, toCSV(geradas)); };
@@ -346,20 +368,22 @@ Trilha: ${r.trilha}${r.verso?`\nVerso: ${r.verso}`:""}`
 
   const handlePdfFile = async (file) => {
     setBusy(true);
-    setPdfStatus("Lendo PDF…");
+    setPdfStatus(lang === "PT" ? "Lendo PDF…" : "Reading PDF…");
     setPdfName(file.name);
     try {
       let raw = await extractPdfText(file);
       if (!raw || raw.replace(/\s+/g,'').length < 20) {
         if (useOcr) {
-          setPdfStatus("Texto não encontrado. Iniciando OCR…");
+          setPdfStatus(lang === "PT" ? "Texto não encontrado. Iniciando OCR…" : "No text found. Starting OCR…");
           const text = await ocrPdfToText(file, ocrLang, (msg)=> setPdfStatus(msg));
           raw = text;
         } else {
-          throw new Error('Nenhum texto extraído (parece ser um PDF escaneado). Ative OCR e tente de novo.');
+          throw new Error(lang === "PT"
+            ? "Nenhum texto extraído (parece ser um PDF escaneado). Ative OCR e tente de novo."
+            : "No text extracted (looks like a scanned PDF). Enable OCR and try again.");
         }
       }
-      setPdfStatus("Processando texto…");
+      setPdfStatus(lang === "PT" ? "Processando texto…" : "Processing text…");
       const lines = cleanLines(raw);
 
       const rich = lines.map(s => ({ s, score: scoreLine(s) }))
@@ -370,33 +394,50 @@ Trilha: ${r.trilha}${r.verso?`\nVerso: ${r.verso}`:""}`
 
       if (roteirosC.length) setTextoRoteiros(roteirosC.join("\n"));
       if (versosC.length) setTextoVersos(prev => (prev ? prev + "\n" : "") + versosC.join("\n"));
-      setPdfStatus(`Extração concluída: ${roteirosC.length} roteiros · ${versosC.length} versos`);
+      setPdfStatus(
+        lang === "PT"
+          ? `Extração concluída: ${roteirosC.length} roteiros · ${versosC.length} versos`
+          : `Extraction done: ${roteirosC.length} ideas · ${versosC.length} verses`
+      );
     } catch (e) {
       console.error(e);
-      setPdfStatus(e?.message || "Falha ao extrair. Tente outro PDF ou cole manualmente.");
-      alert(e?.message || "Falha ao extrair. Tente outro PDF ou cole manualmente.");
+      const msg = e?.message || (lang === "PT" ? "Falha ao extrair. Tente outro PDF ou cole manualmente." : "Failed to extract. Try another PDF or paste manually.");
+      setPdfStatus(msg);
+      alert(msg);
     } finally { setBusy(false); }
+  };
+
+  const copiarPrompts = (idx) => {
+    const prompts = geradas[idx]?.prompts || [];
+    if (!prompts.length) return;
+    navigator.clipboard.writeText(prompts.map((p, i) => `${i+1}. ${p}`).join("\n"));
   };
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 p-6">
       <div className="max-w-6xl mx-auto">
         <h1 className="text-2xl md:text-3xl font-bold">Gerador diário de ideias de roteiros</h1>
-        <p className="text-zinc-400 mt-1">Leitura de PDF com fallback de <span className="text-emerald-400 font-semibold">OCR</span>, salvamento local e exportação JSON.</p>
+        <p className="text-zinc-400 mt-1">
+          Leitura de PDF com fallback de <span className="text-emerald-400 font-semibold">OCR</span>, salvamento local e exportação JSON.
+        </p>
 
         <div className="mt-4 bg-zinc-900 rounded-2xl border border-zinc-800 p-4">
           <div className="flex flex-col gap-3">
             <div className="text-sm text-zinc-300">
-              <div className="font-semibold">Carregar PDF</div>
-              <div className="text-zinc-400">Se o PDF for escaneado (só imagem), ative a opção de OCR.</div>
+              <div className="font-semibold">{lang === "PT" ? "Carregar PDF" : "Upload PDF"}</div>
+              <div className="text-zinc-400">
+                {lang === "PT"
+                  ? "Se o PDF for escaneado (só imagem), ative a opção de OCR."
+                  : "If the PDF is scanned (image-only), enable the OCR option."}
+              </div>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
               <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-zinc-700 bg-zinc-950 cursor-pointer">
                 <input type="file" accept="application/pdf" className="hidden" onChange={e=>{ if(e.target.files?.[0]) handlePdfFile(e.target.files[0]); }} />
-                <span>Escolher PDF</span>
+                <span>{lang === "PT" ? "Escolher PDF" : "Choose PDF"}</span>
               </label>
               <label className="flex items-center gap-2 text-sm text-zinc-300">
-                <input type="checkbox" checked={useOcr} onChange={e=>setUseOcr(e.target.checked)} /> Usar OCR se necessário
+                <input type="checkbox" checked={useOcr} onChange={e=>setUseOcr(e.target.checked)} /> {lang === "PT" ? "Usar OCR se necessário" : "Use OCR if needed"}
               </label>
               <select className="bg-zinc-800 rounded-xl p-2 text-sm" value={ocrLang} onChange={e=>setOcrLang(e.target.value)}>
                 <option value="por">OCR: Português</option>
@@ -412,19 +453,19 @@ Trilha: ${r.trilha}${r.verso?`\nVerso: ${r.verso}`:""}`
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
           <div>
-            <label className="text-sm text-zinc-400">Roteiros base (uma ideia por linha)</label>
+            <label className="text-sm text-zinc-400">{lang === "PT" ? "Roteiros base (uma ideia por linha)" : "Base ideas (one per line)"}</label>
             <textarea
               className="w-full mt-2 h-56 rounded-2xl bg-zinc-900 border border-zinc-800 p-3 focus:outline-none"
-              placeholder="Cole ou extraia do PDF cada roteiro em uma linha…"
+              placeholder={lang === "PT" ? "Cole ou extraia do PDF cada roteiro em uma linha…" : "Paste or extract from the PDF, one idea per line…"}
               value={textoRoteiros}
               onChange={e=>setTextoRoteiros(e.target.value)}
             />
           </div>
           <div>
-            <label className="text-sm text-zinc-400">Versículos (opcional, um por linha)</label>
+            <label className="text-sm text-zinc-400">{lang === "PT" ? "Versículos (opcional, um por linha)" : "Verses (optional, one per line)"}</label>
             <textarea
               className="w-full mt-2 h-56 rounded-2xl bg-zinc-900 border border-zinc-800 p-3 focus:outline-none"
-              placeholder="Versos extraídos do PDF ou colados manualmente…"
+              placeholder={lang === "PT" ? "Versos extraídos do PDF ou colados manualmente…" : "Verses extracted from the PDF or pasted manually…"}
               value={textoVersos}
               onChange={e=>setTextoVersos(e.target.value)}
             />
@@ -434,63 +475,98 @@ Trilha: ${r.trilha}${r.verso?`\nVerso: ${r.verso}`:""}`
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
           <div className="bg-zinc-900 rounded-2xl border border-zinc-800 p-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-zinc-400">Idioma</span>
+              <span className="text-sm text-zinc-400">{lang === "PT" ? "Idioma" : "Language"}</span>
               <select className="bg-zinc-800 rounded-xl p-2" value={lang} onChange={e=>setLang(e.target.value)}>
                 <option value="PT">Português</option>
                 <option value="EN">English</option>
               </select>
             </div>
             <div className="flex items-center justify-between mt-3">
-              <span className="text-sm text-zinc-400">Ideias por dia</span>
+              <span className="text-sm text-zinc-400">{lang === "PT" ? "Ideias por dia" : "Ideas per day"}</span>
               <input className="bg-zinc-800 rounded-xl p-2 w-20" type="number" min={1} max={30} value={n} onChange={e=>setN(parseInt(e.target.value||"9"))} />
             </div>
             <div className="flex items-center justify-between mt-3">
-              <span className="text-sm text-zinc-400">Data</span>
+              <span className="text-sm text-zinc-400">{lang === "PT" ? "Data" : "Date"}</span>
               <input className="bg-zinc-800 rounded-xl p-2" type="date" value={dataEscolhida} onChange={e=>setDataEscolhida(e.target.value)} />
             </div>
             <div className="flex items-center justify-between mt-3">
               <label className="flex items-center gap-2 text-sm text-zinc-300">
                 <input type="checkbox" checked={reforcarTitulo} onChange={e=>setReforcarTitulo(e.target.checked)} />
-                Título em destaque
+                {lang === "PT" ? "Título em destaque" : "Highlight title"}
               </label>
               <label className="flex items-center gap-2 text-sm text-zinc-300">
                 <input type="checkbox" checked={incluirVerso} onChange={e=>setIncluirVerso(e.target.checked)} />
-                Incluir 1 verso
+                {lang === "PT" ? "Incluir 1 verso" : "Include 1 verse"}
               </label>
             </div>
-            <button onClick={handleGerar} disabled={busy} className="mt-4 w-full bg-emerald-600 hover:bg-emerald-500 transition rounded-xl py-2 font-semibold">Gerar ideias</button>
+            <button onClick={handleGerar} disabled={busy} className="mt-4 w-full bg-emerald-600 hover:bg-emerald-500 transition rounded-xl py-2 font-semibold">
+              {lang === "PT" ? "Gerar ideias" : "Generate ideas"}
+            </button>
             <div className="flex gap-2 mt-3">
-              <button onClick={salvarCorpus} className="bg-zinc-800 rounded-xl px-3 py-2 text-sm">Salvar corpus</button>
+              <button onClick={salvarCorpus} className="bg-zinc-800 rounded-xl px-3 py-2 text-sm">
+                {lang === "PT" ? "Salvar corpus" : "Save corpus"}
+              </button>
             </div>
           </div>
 
           <div className="md:col-span-2 bg-zinc-900 rounded-2xl border border-zinc-800 p-4">
             <div className="flex items-center justify-between">
-              <h2 className="font-semibold">Resultado ({geradas.length})</h2>
+              <h2 className="font-semibold">{lang === "PT" ? `Resultado (${geradas.length})` : `Results (${geradas.length})`}</h2>
               <div className="flex gap-2">
-                <button onClick={copiarTexto} className="bg-zinc-800 rounded-xl px-3 py-2">Copiar texto</button>
-                <button onClick={baixarCSV} className="bg-zinc-800 rounded-xl px-3 py-2">Baixar CSV</button>
-                <button onClick={baixarJSON} className="bg-zinc-800 rounded-xl px-3 py-2">Exportar JSON</button>
+                <button onClick={copiarTexto} className="bg-zinc-800 rounded-xl px-3 py-2">
+                  {lang === "PT" ? "Copiar texto" : "Copy text"}
+                </button>
+                <button onClick={baixarCSV} className="bg-zinc-800 rounded-xl px-3 py-2">
+                  {lang === "PT" ? "Baixar CSV" : "Download CSV"}
+                </button>
+                <button onClick={baixarJSON} className="bg-zinc-800 rounded-xl px-3 py-2">
+                  {lang === "PT" ? "Exportar JSON" : "Export JSON"}
+                </button>
               </div>
             </div>
+
             <ol className="mt-3 space-y-3 list-decimal list-inside">
               {geradas.map((r, idx) => (
                 <li key={idx} className="bg-zinc-950/60 rounded-xl p-3 border border-zinc-800">
                   <div className="text-emerald-400 text-sm">{r.data}</div>
                   <div className="text-lg font-bold mt-1">{r.titulo}</div>
-                  <div className="text-sm text-zinc-300 mt-1">Gancho: {r.gancho}</div>
+                  <div className="text-sm text-zinc-300 mt-1">{lang === "PT" ? "Gancho" : "Hook"}: {r.gancho}</div>
 
                   {/* ÚNICA caixinha de Frase de impacto */}
                   {r.impacto && (
                     <div className="mt-2 rounded-xl border border-emerald-800 bg-emerald-900/10 p-3">
-                      <div className="text-emerald-400 text-xs uppercase tracking-wide">Frase de impacto</div>
+                      <div className="text-emerald-400 text-xs uppercase tracking-wide">
+                        {lang === "PT" ? "Frase de impacto" : "Impact line"}
+                      </div>
                       <div className="mt-1 font-semibold">{r.impacto}</div>
                     </div>
                   )}
 
-                  <div className="mt-1 whitespace-pre-wrap">{r.ideiaCentral}</div>
-                  <div className="text-sm text-zinc-300 mt-1">CTA: {r.cta} · Visual: {r.visual} · Trilha: {r.trilha}</div>
-                  {r.verso && <div className="text-sm text-zinc-400 mt-1">Verso: {r.verso}</div>}
+                  <div className="mt-2 whitespace-pre-wrap">{r.ideiaCentral}</div>
+                  <div className="text-sm text-zinc-300 mt-2">
+                    {lang === "PT" ? "CTA" : "CTA"}: {r.cta} · {lang === "PT" ? "Visual" : "Visuals"}: {r.visual} · {lang === "PT" ? "Trilha" : "Track"}: {r.trilha}
+                  </div>
+                  {r.verso && <div className="text-sm text-zinc-400 mt-1">{lang === "PT" ? "Verso" : "Verse"}: {r.verso}</div>}
+
+                  {/* Prompts para construir o vídeo */}
+                  {r.prompts?.length ? (
+                    <div className="mt-3 rounded-xl border border-zinc-700 bg-zinc-950/40 p-3">
+                      <div className="flex items-center justify-between">
+                        <div className="text-zinc-300 text-sm font-semibold">
+                          {lang === "PT" ? "Prompts para construir o vídeo" : "Prompts to build the video"}
+                        </div>
+                        <button
+                          onClick={()=>copiarPrompts(idx)}
+                          className="text-xs px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700"
+                        >
+                          {lang === "PT" ? "Copiar prompts" : "Copy prompts"}
+                        </button>
+                      </div>
+                      <ul className="mt-2 list-disc list-inside space-y-1 text-zinc-300">
+                        {r.prompts.map((p,i)=> <li key={i}>{p}</li>)}
+                      </ul>
+                    </div>
+                  ) : null}
                 </li>
               ))}
             </ol>
@@ -499,7 +575,9 @@ Trilha: ${r.trilha}${r.verso?`\nVerso: ${r.verso}`:""}`
 
         <div className="mt-8 text-xs text-zinc-500 leading-relaxed">
           <p>
-            Dica: se o PDF for escaneado, o OCR pode levar mais tempo conforme o número de páginas. Para agilizar, divida o arquivo ou reduza a resolução.
+            {lang === "PT"
+              ? "Dica: se o PDF for escaneado, o OCR pode levar mais tempo conforme o número de páginas. Para agilizar, divida o arquivo ou reduza a resolução."
+              : "Tip: if the PDF is scanned, OCR may take longer depending on page count. To speed up, split the file or reduce resolution."}
           </p>
         </div>
       </div>
